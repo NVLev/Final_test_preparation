@@ -1,9 +1,10 @@
 import pandas as pd
+pd.set_option("display.max_columns", 15)
+
 import json
 import requests
-from urllib import parse
 
-pd.set_option("display.max_columns", 15)
+from urllib import parse
 
 
 def query(method: str, **kwargs):
@@ -16,40 +17,42 @@ def query(method: str, **kwargs):
     try:
         url = "https://iss.moex.com/iss/%s.json" % method
         if kwargs: url += "?" + parse.urlencode(kwargs)
-        response = requests.get(url)
-        response.encoding = 'utf-8'
-        response_dict = response.json()
-        return response_dict
+        r = requests.get(url)
+        r.encoding = 'utf-8'
+        j = r.json()
+        return j
 
     except Exception as e:
         print("query error %s" % str(e))
         return None
 
-
-def flatten(response_dict: dict, blockname: str):
+def flatten(j:dict, blockname:str):
     """
     Собираю двумерный массив (словарь)
-    :param response_dict:
+    :param j:
     :param blockname:
     :return:
     """
-
-    return [{k: r[i] for i, k in enumerate(response_dict[blockname]
-                                           ['columns'])} for r in response_dict[blockname]
-                                            ['data']]
-
+    return [{k : r[i] for i, k in enumerate(j[blockname]['columns'])} for r in j[blockname]['data']]
 
 def main():
+
     # Список бумаг торгуемых на московской бирже
-    # r_list = query("securities", group_by="type", group_by_filter="common_share", limit=10)
-    # flat = flatten(r_list, 'securities')
-    # print(pd.DataFrame(flat, columns=['secid', 'shortname']))
+    # https://iss.moex.com/iss/reference/5
+    # j = query("securities")
+    j = query("securities", q="магнит", group_by="group",group_by_filter='stock_shares', limit=5
+              )
+
+    # j = query("securities", group_by="type", group_by_filter="stock_shares", limit=10)
+    # j = query("securities", q="втб", group_by="type", group_by_filter="corporate_bond", limit=10)
+    f = flatten(j, 'securities')
+
     # Спецификация инструмента
     # https://iss.moex.com/iss/reference/13
-    # secid = 'SBER'
+    # secid = 'RU000A102QJ7'
     # method = "securities/%s" % secid
     # j = query(method)
-    # flat = flatten(j, 'description')
+    # f = flatten(j, 'description')
 
     # Купоны по облигациям
     # ** описания нет
@@ -60,14 +63,12 @@ def main():
 
     # Дивиденды по акциям
     # ** описания нет
-    # secid = 'LSRG'
+    # secid = 'MTSS'
     # method = "securities/%s/dividends" % secid
-    method = 'statistics/engines/currency/markets/selt/rates'
-    j = query(method)
-    flat = flatten(j, 'cbrf')
-    # print(j)
+    # j = query(method)
+    # f = flatten(j, 'dividends')
 
-    print(pd.DataFrame(flat))
+    print(pd.DataFrame(f))
     # print(pd.DataFrame(f, columns=['secid','shortname' ,'primary_boardid', 'type']))
     # print(json.dumps(j, ensure_ascii=False, indent=4, sort_keys=True))
 
